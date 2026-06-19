@@ -976,13 +976,16 @@ function pickPhoto(acc){photoTarget=acc;document.getElementById('photoInput').cl
 /* ---- table ---- */
 let sortKey='eng',sortDir=-1;
 function renderTable(rows,src){
-  const split=(src!=='ORGANIC');   // Total/Paid show Organic vs Paid; Organic view = organic only
+  const mode = src==='ORGANIC'?'org':(src==='PAID'?'paid':'split');
   const cols=[['account',L('บัญชี','Account')],['tier','Tier'],['pillar','Pillar'],['followers',L('ผู้ติดตาม','Followers')],['impr','Impr.'],['view','Views'],['reach','Reach'],['eng','Eng.'],['er','ER%']];
-  if(split)cols.push(['budget',L('งบ Spend','Budget Spend')]);
+  if(mode!=='org')cols.push(['budget',L('งบ Spend','Budget Spend')]);
   const org=(r,k)=>r.paid?Math.max(0,r.org[k]-r.paid[k]):r.org?r.org[k]:r[k];
   const pad=(r,k)=>r.paid?r.paid[k]:0;
+  const goldV=v=>`<td class="num"><div class="cmp"><span class="o">${fmt(v)}</span></div></td>`;
+  const blueV=v=>`<td class="num"><div class="cmp"><span style="color:#5B7FB9;font-weight:700">${v>0?fmt(v):"<span class='z'>—</span>"}</span></div></td>`;
   const splitCell=(o,p)=>{
-    if(!split)return `<td class="num"><div class="cmp"><span class="o">${fmt(o)}</span></div></td>`;
+    if(mode==='org')return goldV(o);
+    if(mode==='paid')return blueV(p);
     const t=o+p;const ow=t?o/t*100:0;
     return `<td class="num"><div class="cmp"><span class="o">${fmt(o)}</span>${p>0?`<span class="p">${fmt(p)}</span>`:`<span class="z">—</span>`}</div><div class="sbar"><span style="width:${ow}%;background:var(--gold-d)"></span><span style="width:${100-ow}%;background:#5B7FB9"></span></div></td>`;};
   const sorted=[...rows].sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(x==null)x=0;if(y==null)y=0;if(typeof x==='string')return sortDir*x.localeCompare(y);return sortDir*(x-y);});
@@ -993,18 +996,19 @@ function renderTable(rows,src){
     const oImpr=org(r,'impr'),pImpr=pad(r,'impr');
     const clicks=r.paid?r.paid.click:0;
     const orgER=oImpr?r.eng/oImpr:0,paidCTR=pImpr?clicks/pImpr:0;
-    const engCell=split
-      ?`<td class="num"><div class="cmp"><span class="o">${fmt(r.eng)}</span>${clicks>0?`<span class="p">${fmt(clicks)}</span>`:`<span class="z">—</span>`}</div></td>`
-      :`<td class="num"><div class="cmp"><span class="o">${fmt(r.eng)}</span></div></td>`;
-    const erCell=split
-      ?`<td class="num"><div class="cmp"><span class="o">${pctOf(orgER)}</span>${pImpr>0?`<span class="p">${(paidCTR*100).toFixed(1)}%</span>`:`<span class="z">—</span>`}</div></td>`
-      :`<td class="num"><div class="cmp"><span class="o">${pctOf(orgER)}</span></div></td>`;
+    let engCell,erCell;
+    if(mode==='org'){engCell=goldV(r.eng);erCell=`<td class="num"><div class="cmp"><span class="o">${pctOf(orgER)}</span></div></td>`;}
+    else if(mode==='paid'){engCell=blueV(clicks);erCell=`<td class="num"><div class="cmp"><span style="color:#5B7FB9;font-weight:700">${pImpr>0?(paidCTR*100).toFixed(1)+'%':"<span class='z'>—</span>"}</span></div></td>`;}
+    else{
+      engCell=`<td class="num"><div class="cmp"><span class="o">${fmt(r.eng)}</span>${clicks>0?`<span class="p">${fmt(clicks)}</span>`:`<span class="z">—</span>`}</div></td>`;
+      erCell=`<td class="num"><div class="cmp"><span class="o">${pctOf(orgER)}</span>${pImpr>0?`<span class="p">${(paidCTR*100).toFixed(1)}%</span>`:`<span class="z">—</span>`}</div></td>`;
+    }
     let row=`<tr><td>${acc}</td><td><span class="mini-pill" style="background:${tcolor(r.tier)}">${r.tier}</span></td>`
       +`<td><span class="pillar-tag">${r.pillar}</span></td>`
       +`<td class="num">${fmt(r.followers)}</td>`
       +splitCell(oImpr,pImpr)+splitCell(org(r,'view'),pad(r,'view'))+splitCell(org(r,'reach'),pad(r,'reach'))
       +engCell+erCell;
-    if(split)row+=`<td class="num">${(r.budget&&r.budget>0)?('฿'+full(r.budget)):'<span class="z">—</span>'}</td>`;
+    if(mode!=='org')row+=`<td class="num">${(r.budget&&r.budget>0)?('฿'+full(r.budget)):'<span class="z">—</span>'}</td>`;
     h+=row+'</tr>';
   });
   document.getElementById('kolTable').innerHTML=h+'</tbody>';
