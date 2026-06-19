@@ -562,7 +562,8 @@ function buildModel(raw){
   const rows=[];
   for(let i=dataStart;i<s1.length;i++){
     const r=s1[i];if(!r)continue;const acc=r[C.account];
-    if(acc==null||String(acc).trim()==='')continue;
+    const accStr=String(acc==null?'':acc).trim();
+    if(!/[a-z0-9ก-๙]/i.test(accStr))continue;
     const org={impr:num(r[C.impr]),view:num(r[C.view]),reach:num(r[C.reach])};
     const budget=num(r[C.budget]);
     let paid=null;
