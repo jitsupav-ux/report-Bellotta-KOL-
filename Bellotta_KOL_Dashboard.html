@@ -217,6 +217,18 @@ footer b{color:var(--gold-d)}
 @media(max-width:1024px){.kpi-block,.two{grid-template-columns:1fr}.ach-grid,.dgbn,.three{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:640px){.kpi-row{grid-template-columns:repeat(2,1fr)}.hero{padding:22px 18px}.hero h1{font-size:24px}.sec-head h2{font-size:22px}.wrap,.topbar-in{padding-left:14px;padding-right:14px}}
 @media print{.topbar,.dropzone,.workflow,.photo-overlay,#uploadSection .note-box{display:none!important}body{background:#fff}.hero{box-shadow:none}}
+.cont{font-size:10px;color:var(--mu);margin-top:1px;font-weight:500}
+.cbar{height:3px;border-radius:2px;background:#EFE7D0;margin-top:3px;width:100%;overflow:hidden}
+.cbar>i{display:block;height:100%;background:var(--gold-d);border-radius:2px}
+.cmp{display:flex;flex-direction:column;align-items:flex-end;line-height:1.18}
+.cmp .o{color:var(--gold-d);font-weight:700}
+.cmp .p{color:#5B7FB9;font-weight:600;font-size:11px}
+.cmp .z{color:var(--mu);font-weight:500;font-size:11px}
+.sbar{height:4px;border-radius:2px;background:#EFE7D0;margin-top:3px;width:100%;display:flex;overflow:hidden}
+.sbar>span{height:100%;display:block}
+.tbl-legend{display:flex;gap:16px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:10px;font-size:12px}
+.tbl-legend .lg{display:flex;align-items:center;gap:6px;color:var(--mu)}
+.tbl-legend .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
 .ach-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
 .ach-tiles .at{border:1px solid var(--line,#ECE4CE);border-radius:12px;padding:12px 14px;background:rgba(218,177,53,.05);text-align:center}
 .ach-tiles .at .atl{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--mu,#8a8060);margin-bottom:4px}
@@ -452,8 +464,12 @@ footer b{color:var(--gold-d)}
       <div>
         <div class="eyebrow">Detail</div>
         <h2><span class="lang-th">ตารางวิเคราะห์รายบุคคล</span><span class="lang-en">Per-KOL Analysis</span></h2>
-        <div class="sub"><span class="lang-th">แสดงผลตามตัวกรอง (เดือน/ช่องทาง/ระดับ/แหล่งที่มา) · คลิกหัวคอลัมน์เพื่อจัดเรียง</span><span class="lang-en">Reflects current filters (month/channel/tier/source) · click a header to sort.</span></div>
+        <div class="sub"><span class="lang-th">แต่ละ Key metric แสดง <b style="color:var(--gold-d)">Organic</b> เทียบ <b style="color:#5B7FB9">Paid</b> (Organic = Total − Paid) · ENG ฝั่ง Paid = Clicks · ER% ฝั่ง Paid = CTR · กรองตามเดือน/ช่องทาง/ระดับ · คลิกหัวคอลัมน์เพื่อจัดเรียง</span><span class="lang-en">Each key metric shows <b style="color:var(--gold-d)">Organic</b> vs <b style="color:#5B7FB9">Paid</b> (Organic = Total − Paid) · Paid side of ENG = Clicks · of ER% = CTR · click a header to sort.</span></div>
       </div>
+    </div>
+    <div class="tbl-legend">
+      <span class="lg"><span class="dot" style="background:var(--gold-d)"></span><span class="lang-th">Organic (เนื้อหา)</span><span class="lang-en">Organic</span></span>
+      <span class="lg"><span class="dot" style="background:#5B7FB9"></span><span class="lang-th">Paid (โฆษณา)</span><span class="lang-en">Paid</span></span>
     </div>
     <div class="tbl-wrap"><table class="data" id="kolTable"></table></div>
   </section>
@@ -716,7 +732,9 @@ function render(){
   renderBreakdown(rows,A);
   renderAudience(A);
   renderKolCards(rows);
-  renderTable(rows,src);
+  let tableRows=rawRows;
+  if(src==='PAID')tableRows=rawRows.filter(r=>r.paid&&((r.paid.budget||0)>0||(r.paid.impr||0)>0));
+  renderTable(tableRows,src);
   if(rows.length){
     renderInsights(rows,A,mAgg);
     renderDGBN(rows,A);
@@ -958,19 +976,36 @@ function pickPhoto(acc){photoTarget=acc;document.getElementById('photoInput').cl
 /* ---- table ---- */
 let sortKey='eng',sortDir=-1;
 function renderTable(rows,src){
-  const showBudget=(src!=='ORGANIC');
+  const split=(src!=='ORGANIC');   // Total/Paid show Organic vs Paid; Organic view = organic only
   const cols=[['account',L('บัญชี','Account')],['tier','Tier'],['pillar','Pillar'],['followers',L('ผู้ติดตาม','Followers')],['impr','Impr.'],['view','Views'],['reach','Reach'],['eng','Eng.'],['er','ER%']];
-  if(showBudget)cols.push(['budget',L('งบ Spend','Budget Spend')]);
+  if(split)cols.push(['budget',L('งบ Spend','Budget Spend')]);
+  const org=(r,k)=>r.paid?Math.max(0,r.org[k]-r.paid[k]):r.org?r.org[k]:r[k];
+  const pad=(r,k)=>r.paid?r.paid[k]:0;
+  const splitCell=(o,p)=>{
+    if(!split)return `<td class="num"><div class="cmp"><span class="o">${fmt(o)}</span></div></td>`;
+    const t=o+p;const ow=t?o/t*100:0;
+    return `<td class="num"><div class="cmp"><span class="o">${fmt(o)}</span>${p>0?`<span class="p">${fmt(p)}</span>`:`<span class="z">—</span>`}</div><div class="sbar"><span style="width:${ow}%;background:var(--gold-d)"></span><span style="width:${100-ow}%;background:#5B7FB9"></span></div></td>`;};
   const sorted=[...rows].sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(x==null)x=0;if(y==null)y=0;if(typeof x==='string')return sortDir*x.localeCompare(y);return sortDir*(x-y);});
   let h='<thead><tr>'+cols.map(([k,l])=>`<th onclick="setSort('${k}')">${l}${sortKey===k?(sortDir<0?' ▼':' ▲'):''}</th>`).join('')+'</tr></thead><tbody>';
   sorted.forEach(r=>{
     const img=KOL_IMAGES[r.account];
     const acc=`<div class="tacc">${img?`<img src="${img}">`:`<div class="tinit">${initials(r.account)}</div>`}<span>@${r.account}</span></div>`;
-    const bud=(r.budget&&r.budget>0)?('฿'+full(r.budget)):'<span style="color:var(--mu)">—</span>';
-    h+=`<tr><td>${acc}</td><td><span class="mini-pill" style="background:${tcolor(r.tier)}">${r.tier}</span></td>
-      <td><span class="pillar-tag">${r.pillar}</span></td>
-      <td class="num">${fmt(r.followers)}</td><td class="num">${fmt(r.impr)}</td><td class="num">${fmt(r.view)}</td>
-      <td class="num">${fmt(r.reach)}</td><td class="num">${fmt(r.eng)}</td><td class="num">${pctOf(r.er)}</td>${showBudget?`<td class="num">${bud}</td>`:''}</tr>`;
+    const oImpr=org(r,'impr'),pImpr=pad(r,'impr');
+    const clicks=r.paid?r.paid.click:0;
+    const orgER=oImpr?r.eng/oImpr:0,paidCTR=pImpr?clicks/pImpr:0;
+    const engCell=split
+      ?`<td class="num"><div class="cmp"><span class="o">${fmt(r.eng)}</span>${clicks>0?`<span class="p">${fmt(clicks)}</span>`:`<span class="z">—</span>`}</div></td>`
+      :`<td class="num"><div class="cmp"><span class="o">${fmt(r.eng)}</span></div></td>`;
+    const erCell=split
+      ?`<td class="num"><div class="cmp"><span class="o">${pctOf(orgER)}</span>${pImpr>0?`<span class="p">${(paidCTR*100).toFixed(1)}%</span>`:`<span class="z">—</span>`}</div></td>`
+      :`<td class="num"><div class="cmp"><span class="o">${pctOf(orgER)}</span></div></td>`;
+    let row=`<tr><td>${acc}</td><td><span class="mini-pill" style="background:${tcolor(r.tier)}">${r.tier}</span></td>`
+      +`<td><span class="pillar-tag">${r.pillar}</span></td>`
+      +`<td class="num">${fmt(r.followers)}</td>`
+      +splitCell(oImpr,pImpr)+splitCell(org(r,'view'),pad(r,'view'))+splitCell(org(r,'reach'),pad(r,'reach'))
+      +engCell+erCell;
+    if(split)row+=`<td class="num">${(r.budget&&r.budget>0)?('฿'+full(r.budget)):'<span class="z">—</span>'}</td>`;
+    h+=row+'</tr>';
   });
   document.getElementById('kolTable').innerHTML=h+'</tbody>';
 }
